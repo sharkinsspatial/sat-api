@@ -25,6 +25,7 @@
     "@sat-utils/landsat": "^0.0.2",
     "@sat-utils/manager": "^0.0.2",
     "@sat-utils/sentinel": "^0.0.2",
+    "@developmentseed/task-starter": "^0.1.0",
     "lambda-proxy-utils": "^1.2.4",
     "lodash.get": "^4.4.2"
   },
