@@ -16,6 +16,14 @@ default:
     instanceType: t2.small.elasticsearch
     volumeSize: 35 
 
+  tasks:
+    SatApiTaskRunner:
+      image: developmentseed/lambda-ecs-runner:node-8.11
+      cpu: 512
+      memory: 1024
+      envs:
+        stackName: '{{stackName}}'
+
   apis:
     - name: stac
 
