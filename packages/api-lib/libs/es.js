@@ -6,6 +6,7 @@ const elasticsearch = require('elasticsearch')
 const through2 = require('through2')
 const ElasticsearchWritableStream = require('elasticsearch-writable-stream')
 const pump = require('pump')
+const { inTestMode } = require('./aws')
 
 let esClient
 
@@ -19,8 +20,10 @@ async function connect() {
   let client
 
   // use local client
-  if (!process.env.ES_HOST) {
-    client = new elasticsearch.Client({ host: 'localhost:9200' })
+  if (inTestMode()) {
+    client = new elasticsearch.Client({
+      host: `http://${process.env.LOCALSTACK_HOST}:4571`
+    })
   }
   else {
     await new Promise((resolve, reject) => AWS.config.getCredentials((err) => {
@@ -177,8 +180,7 @@ function streamToEs(stream, transform, client, index) {
   })
 }
 
-
-async function saveRecords(client, records, index, idfield, callback) {
+async function saveRecords(client, records, index, idfield) {
   const body = []
 
   records.forEach((r) => {
@@ -193,29 +195,23 @@ async function saveRecords(client, records, index, idfield, callback) {
   let updated = 0
   let errors = 0
 
-  return client.bulk({ body }, (err, resp) => {
-    if (err) {
-      console.log(err)
-    }
-    else {
-      if (resp.errors) {
-        resp.items.forEach((r) => {
-          if (r.update.status === 400) {
-            console.log(r.update.error.reason)
-            errors += 1
-          }
-          else {
-            updated += 1
-          }
-        })
+  const resp = await client.bulk({ body })
+  if (resp.errors) {
+    resp.items.forEach((r) => {
+      if (r.update.status === 400) {
+        console.log(r.update.error.reason)
+        errors += 1
       }
       else {
-        updated = resp.items.length
+        updated += 1
       }
-      //added = added + resp.items.length
-      callback(null, updated, errors)
-    }
-  })
+    })
+  }
+  else {
+    updated = resp.items.length
+  }
+
+  return ({ updated, errors })
 }
 
 
