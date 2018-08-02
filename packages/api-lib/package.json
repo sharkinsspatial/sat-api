@@ -13,7 +13,7 @@
   "author": "Alireza Jazayeri <alireza@developmentseed.org>, Matthew Hanson <matt.a.hanson@gmail.com>",
   "license": "MIT",
   "ava": {
-    "files": "tests/*.js",
+    "files": "tests/test-*.js",
     "verbose": true,
     "serial": true
   },
@@ -34,6 +34,7 @@
     "moment": "^2.15.1",
     "p-limit": "^2.0.0",
     "pump": "^3.0.0",
+    "pump-promise": "^1.0.0",
     "turf-area": "^3.0.1",
     "turf-intersect": "^3.0.10",
     "turf-kinks": "^3.0.12",
@@ -41,6 +42,7 @@
   },
   "devDependencies": {
     "ava": "^0.16.0",
+    "fs-extra": "^7.0.0",
     "nock": "^8.0.0"
   }
 }
