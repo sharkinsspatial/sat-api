@@ -7,9 +7,11 @@
     "mocha": true
   },
   "rules": {
+    "no-param-reassign": "off",
     "semi": [2, "never"],
     "radix": "off",
     "no-console": "off",
+    "object-curly-newline": "off",
     "indent": [ "error", 2 ],
     "require-jsdoc": "off",
     "valid-jsdoc": [ "error", {
