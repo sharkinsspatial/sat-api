@@ -1,12 +1,13 @@
 'use strict'
 
+const fs = require('fs')
 const csv = require('fast-csv')
-const AWS = require('aws-sdk')
+const pump = require('pump-promise')
 const zlib = require('zlib')
 const pLimit = require('p-limit')
 const lodash = require('lodash')
 const es = require('./es')
-
+const { AWS } = require('./aws')
 let esClient
 const got = require('got')
 const stream = require('stream')
@@ -38,6 +39,72 @@ function invokeLambda(bucket, key, nextFileNum, lastFileNum, arn, retries) {
   }
 
   return Promise.resolve()
+}
+
+/**
+ * Download a given url to disk. If the url points to a zipped (gz)
+ * file the function will unzip it before saving the file to disk
+ *
+ * @param {string} filePath - where to download the file (should include the filename)
+ * @param {string} url - the url to download the file from
+ * @returns {Promise<string>} path to the file
+ */
+function downloadUrl(filePath, url) {
+  let promise
+  const gotStream = got.stream(url)
+  const writeStream = fs.createWriteStream(filePath)
+  const gunzip = zlib.createGunzip()
+
+  switch (url.substr(url.lastIndexOf('.') + 1)) {
+  case 'csv':
+    promise = pump(gotStream, writeStream)
+    break
+  case 'gz':
+    promise = pump(gotStream, gunzip, writeStream)
+    break
+  default:
+    throw new Error('case not found')
+  }
+
+  return promise.then(() => {
+    console.log(`Stored download to ${filePath} from ${url}`)
+    return filePath
+  })
+}
+
+/**
+ * Upload a given file to S3
+ *
+ * @param {string} filePath - path to the file
+ * @param {string} bucket - the bucket name
+ * @param {string} key - the S3 key
+ * @returns {Promise<string>} the s3 uri
+ */
+async function uploadFile(filePath, bucket, key) {
+  const readStream = fs.createReadStream(filePath)
+  await s3.upload({
+    Bucket: bucket,
+    Key: key,
+    Body: readStream
+  }).promise()
+  return `s3://${bucket}/${key}`
+}
+
+/**
+ * Downloads a given url and then Uploads it to a given remote file to S3
+ *
+ * @param {string} url - the url of the file
+ * @param {string} bucket - name of the bucket
+ * @param {string} key - S3 object key
+ * @param {string} [filePath] - where to download the file (should include the filename)
+ * @returns {Promise} the final s3 uri
+ */
+async function syncUrl(url, bucket, key, filePath) {
+  // download the file
+  await downloadUrl(filePath, url)
+
+  // upload the url
+  return uploadFile(filePath, bucket, key)
 }
 
 // split a CSV to multiple files and trigger lambdas
@@ -172,7 +239,10 @@ function split({
 }
 
 // Process single CSV file
-function processFile(bucket, key, transform) {
+function processFile(bucket, key, transform, client) {
+  if (!esClient) {
+    esClient = client
+  }
   // get the csv file s3://${bucket}/${key}
   console.log(`Processing s3://${bucket}/${key}`)
   const csvStream = csv.parse({ headers: true, objectMode: true })
@@ -233,5 +303,9 @@ async function update({
 
 module.exports = {
   update: update,
-  split: split
+  split: split,
+  uploadFile,
+  processFile,
+  downloadUrl,
+  syncUrl
 }
