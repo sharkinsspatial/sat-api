@@ -4,6 +4,12 @@ jobs:
   build:
     docker:
       - image: circleci/node:8.11
+      - name: localstack
+        image: localstack/localstack:0.8.7
+        environment:
+          ENV_INTERNAL_TEST_RUN: true
+          DEBUG: 1
+          SERVICES: 's3,elasticsearch'
     working_directory: ~/project
     steps:
       - checkout
@@ -22,6 +28,8 @@ jobs:
           command: yarn build 
       - run:
           name: Test
+          environment:
+            LOCALSTACK_HOST: localstack
           command: yarn test
     
       - run:
